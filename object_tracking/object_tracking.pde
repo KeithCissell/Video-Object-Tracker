@@ -11,22 +11,32 @@ import org.opencv.calib3d.Calib3d;
 import org.opencv.highgui.Highgui;
 import org.opencv.imgproc.Imgproc;
 
-// Movie
+// GLOBALS
+PImage displayImage;
 Movie myMovie;
-PImage lastFrame;
+PImage referenceImg;
+SURFTracker surfer;
 
 int framecount = 1;
 boolean finished = false;
 List<String> original_images = new ArrayList<String>();
-
-PImage referenceImg;
-PImage currImg;
-String refFilename = "reference.jpg";
 //int num_of_frames;
 
-SURFTracker surfer;
+// Movies
+String soccerMovie = "totoro.mov";
+String test1Movie = "test1.mp4";
+
+// Reference Images
+String soccerBall = "reference.jpg";
+String test1Ref = "test1ref.jpg";
+
+// Sample Items
 String bookObject = "bookobject.jpg";
 String bookScene = "bookscene.jpg";
+
+// Setup Movie to play and image to track
+String fnameMovie = test1Movie;
+String refFilename = test1Ref;
 
 
 void setup() {
@@ -38,27 +48,25 @@ void setup() {
   surfer = new SURFTracker(referenceImg);
   //referenceImg.filter(GRAY);
   background(255);
-  myMovie = new Movie(this, "totoro.mov");
-  myMovie.loop();
+  myMovie = new Movie(this, fnameMovie);
+  myMovie.play();
   //PImage sceneImg = loadImage(bookScene);
-  //currImg = surfer.objectImg;
-  //currImg = surfer.objectFeaturesImg;
-  //currImg = surfer.findObject(sceneImg);
+  //displayImage = surfer.objectImg;
+  //displayImage = surfer.objectFeaturesImg;
+  //displayImage = surfer.findObject(sceneImg);
+  displayImage = referenceImg;
 }
 
 void draw() {
   if (myMovie.available()) {
     myMovie.read();
-    PImage currFrame = myMovie;
-    if (currFrame != lastFrame) {
-      lastFrame = currFrame;
-      currImg = surfer.findObject(currFrame);
-    }
+    println("Analyzing New Frame");
+    displayImage = surfer.findObject(myMovie);
   }
-  
-  surface.setSize(currImg.width, currImg.height);
-  image(currImg, 0, 0);
-  
+  //displayImage = surfer.objectFeaturesImg;
+  surface.setSize(displayImage.width, displayImage.height);
+  image(displayImage, 0, 0);
+  println();
   
   //if (myMovie.available()) {
   //  myMovie.read();
@@ -95,8 +103,8 @@ void keyPressed(){
 void exhaustive_search(){
   for(int f=0; f< (original_images.size()/10); f+=10){//original_images.size()
     println(original_images.get(f));
-    currImg = loadImage(original_images.get(f));
-    //currImg.filter(GRAY);
+    displayImage = loadImage(original_images.get(f));
+    //displayImage.filter(GRAY);
     
     
     // followed the link here with correlation equation: https://en.wikipedia.org/wiki/Template_matching
@@ -104,14 +112,14 @@ void exhaustive_search(){
     println(min_correl);
     int bestrow = 0, bestcolumn = 0;
     
-    for(int y=0; y<(currImg.height - referenceImg.height); y++){
-      for(int x=0; x<(currImg.width - referenceImg.width); x++){
+    for(int y=0; y<(displayImage.height - referenceImg.height); y++){
+      for(int x=0; x<(displayImage.width - referenceImg.width); x++){
         
         float correl = 0.0;
         
         for(int i=0; i<referenceImg.height; i++){
           for(int j=0; j<referenceImg.width;j++){
-            color cpx = currImg.get(y+i, x+j);
+            color cpx = displayImage.get(y+i, x+j);
             float c = (red(cpx)+green(cpx)+blue(cpx))/3.0;
             color rpx = referenceImg.get(i, j);
             float r = (red(rpx)+green(rpx)+blue(rpx))/3.0;
@@ -135,21 +143,21 @@ void exhaustive_search(){
 }
 
 void logarithmic_search(){
-  currImg = loadImage(original_images.get(0));
+  displayImage = loadImage(original_images.get(0));
   
   // followed the link here with correlation equation: https://en.wikipedia.org/wiki/Template_matching
   float min_correl = Float.POSITIVE_INFINITY;
   //println(min_correl);
   int bestrow = 0, bestcolumn = 0;
   
-  for(int y=0; y<currImg.height - referenceImg.height; y++){
-    for(int x=0; x<currImg.width - referenceImg.width; x++){
+  for(int y=0; y<displayImage.height - referenceImg.height; y++){
+    for(int x=0; x<displayImage.width - referenceImg.width; x++){
       
       float correl = 0.0;
       
       for(int i=0; i<referenceImg.height; i++){
         for(int j=0; j<referenceImg.width;j++){
-          color cpx = currImg.get(y+i, x+j);
+          color cpx = displayImage.get(y+i, x+j);
           float c = (red(cpx)+green(cpx)+blue(cpx))/3.0;
           color rpx = referenceImg.get(i, j);
           float r = (red(rpx)+green(rpx)+blue(rpx))/3.0;
@@ -172,7 +180,7 @@ void logarithmic_search(){
   ///done with the first image
   println(framecount);
   for(int f=0; f<framecount; f++){//original_images.size()
-    currImg = loadImage(original_images.get(f));
+    displayImage = loadImage(original_images.get(f));
     int p = 8;
     
     while(p != 1){
@@ -193,7 +201,7 @@ void logarithmic_search(){
         
         for(int i=0; i<referenceImg.height; i++){
           for(int j=0; j<referenceImg.width;j++){
-            color cpx = currImg.get(y_coord+i, x_coord+j);
+            color cpx = displayImage.get(y_coord+i, x_coord+j);
             float c = (red(cpx)+green(cpx)+blue(cpx))/3.0;
             color rpx = referenceImg.get(i, j);
             float r = (red(rpx)+green(rpx)+blue(rpx))/3.0;
