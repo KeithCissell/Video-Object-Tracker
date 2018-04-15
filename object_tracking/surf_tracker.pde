@@ -6,26 +6,40 @@ it can then be passed a scene that it will search for the image and return any r
 Detection method following this example: http://dummyscodes.blogspot.com/2015/12/using-siftsurf-for-object-recognition.html
 PImage <--> Mat conversion methods from: https://gist.github.com/Spaxe/3543f0005e9f8f3c4dc5
 */
+
+// GLOBALS
+
+// Scalar colors (A, R, G, B)
+Scalar WHITE = new Scalar(255, 255, 255, 255);
+Scalar BLACK = new Scalar(255, 0, 0, 0);
+Scalar RED = new Scalar(255, 255, 0, 0);
+Scalar GREEN = new Scalar(255, 0, 255, 0);
+Scalar BLUE = new Scalar(255, 0, 0, 255);
+
+
 class SURFTracker {
   
-  // Object Items
+  // Object Images
   PImage objectImg;
+  PImage objectFeaturesImg;
+  
+  // Object features
   Mat object;
   MatOfKeyPoint objectKeypoints = new MatOfKeyPoint();
   MatOfKeyPoint objectDescriptors = new MatOfKeyPoint();
-  PImage objectFeaturesImg;
-
-  // Extractors, Matchers
+  int numObjectKeypoints;
+  int numObjectDescriptors;
+  
+  // Other Attributes
+  int matchThreshold = 7; // number of matches needed to classify an object "match" in a scene
+  boolean showFeatureMatches = false; // show mapping of matching features if match found in findObject
+  
+  // Matrix Operators
   FeatureDetector featureDetector = FeatureDetector.create(FeatureDetector.SURF);
   DescriptorExtractor descriptorExtractor = DescriptorExtractor.create(DescriptorExtractor.SURF);
   DescriptorMatcher descriptorMatcher = DescriptorMatcher.create(DescriptorMatcher.FLANNBASED);
-  
-  // Other Attributes
-  int numObjectKeypoints;
-  int numObjectDescriptors;
-  int matchConfidence = 7; // number of matches needed to classify an object "match" in a scene
 
-
+  // CONSTRUCTOR
   SURFTracker(PImage obj) {
     // Set object that will be tracked
     objectImg = obj;
@@ -45,14 +59,14 @@ class SURFTracker {
     Imgproc.cvtColor(object, objectRGB, Imgproc.COLOR_RGBA2RGB);
     // Draw Keypoints on image
     Mat outputRGB = new Mat(object.rows(), object.cols(), CvType.CV_8UC3);
-    Scalar keypointColor = new Scalar(255, 255, 255);
-    Features2d.drawKeypoints(objectRGB, objectKeypoints, outputRGB, keypointColor, 0);
+    Features2d.drawKeypoints(objectRGB, objectKeypoints, outputRGB, RED, 0);
     // Convert output to RGBA and save
     Mat outputRGBA = new Mat(object.rows(), object.cols(), CvType.CV_8UC4);
     Imgproc.cvtColor(outputRGB, outputRGBA, Imgproc.COLOR_RGB2RGBA);
     objectFeaturesImg = toPImage(outputRGBA);
   }
   
+  // FIND OBJECT
   // Takes in a scene and tries to find object
   PImage findObject(PImage sceneImg) {
     // Create a matrix from the scene
@@ -84,71 +98,76 @@ class SURFTracker {
         goodMatchesList.addLast(m1);
       }
     }
+    println("Object Features:", numObjectDescriptors);
+    println("Scene Features: ", sceneDescriptors.toArray().length);
+    println("Good Matches:   ", goodMatchesList.size());
     
     // Determine if there are enough matches to classify object
-    if (goodMatchesList.size() >= matchConfidence) {
+    if (goodMatchesList.size() >= matchThreshold) {
       // Match Found!
-      
-      // Create feature match images
-      // Find corresponding matches b/t object and scene
-      List<KeyPoint> objKeypointlist = objectKeypoints.toList();
-      List<KeyPoint> scnKeypointlist = sceneKeypoints.toList();
+      println("Match Found");
+      // Create an output image
+      if (showFeatureMatches) { // ****Currently Not Working: Displays blank canvas****
+        // Draw map of matching features b/t object and scene
+        Mat matchoutputRGB = new Mat(scene.rows() * 2, scene.cols() * 2, CvType.CV_8UC3);
+        MatOfDMatch goodMatches = new MatOfDMatch();
+        goodMatches.fromList(goodMatchesList);
+        Features2d.drawMatches(object, objectKeypoints, scene, sceneKeypoints, goodMatches, matchoutputRGB, GREEN, RED, new MatOfByte(), 2);
+        // Convert matchoutput photo to RGBA
+        Mat matchoutputRGBA = new Mat(matchoutputRGB.rows(), matchoutputRGB.cols(), CvType.CV_8UC4);
+        Imgproc.cvtColor(matchoutputRGB, matchoutputRGBA, Imgproc.COLOR_RGB2RGBA);
 
-      LinkedList<Point> objectPoints = new LinkedList();
-      LinkedList<Point> scenePoints = new LinkedList();
+        sceneOutput = toPImage(matchoutputRGBA);
+      } else {
+        // Draw a rectangle around the object found in scene
+        // Find corresponding matches b/t object and scene
+        List<KeyPoint> objKeypointlist = objectKeypoints.toList();
+        List<KeyPoint> scnKeypointlist = sceneKeypoints.toList();
 
-      for (int i = 0; i < goodMatchesList.size(); i++) {
-        objectPoints.addLast(objKeypointlist.get(goodMatchesList.get(i).queryIdx).pt);
-        scenePoints.addLast(scnKeypointlist.get(goodMatchesList.get(i).trainIdx).pt);
+        LinkedList<Point> objectPoints = new LinkedList();
+        LinkedList<Point> scenePoints = new LinkedList();
+  
+        for (int i = 0; i < goodMatchesList.size(); i++) {
+          objectPoints.addLast(objKeypointlist.get(goodMatchesList.get(i).queryIdx).pt);
+          scenePoints.addLast(scnKeypointlist.get(goodMatchesList.get(i).trainIdx).pt);
+        }
+  
+        MatOfPoint2f objMatOfPoint2f = new MatOfPoint2f();
+        objMatOfPoint2f.fromList(objectPoints);
+        MatOfPoint2f scnMatOfPoint2f = new MatOfPoint2f();
+        scnMatOfPoint2f.fromList(scenePoints);
+  
+        Mat homography = Calib3d.findHomography(objMatOfPoint2f, scnMatOfPoint2f, Calib3d.RANSAC, 3);
+  
+        // Draw borders around the object match
+        Mat obj_corners = new Mat(4, 1, CvType.CV_32FC2);
+        Mat scene_corners = new Mat(4, 1, CvType.CV_32FC2);
+  
+        obj_corners.put(0, 0, new double[]{0, 0});
+        obj_corners.put(1, 0, new double[]{object.cols(), 0});
+        obj_corners.put(2, 0, new double[]{object.cols(), object.rows()});
+        obj_corners.put(3, 0, new double[]{0, object.rows()});
+  
+        Core.perspectiveTransform(obj_corners, scene_corners, homography);
+  
+        Mat img = toMat(sceneImg);
+  
+        Core.line(img, new Point(scene_corners.get(0, 0)), new Point(scene_corners.get(1, 0)), RED, 4);
+        Core.line(img, new Point(scene_corners.get(1, 0)), new Point(scene_corners.get(2, 0)), RED, 4);
+        Core.line(img, new Point(scene_corners.get(2, 0)), new Point(scene_corners.get(3, 0)), RED, 4);
+        Core.line(img, new Point(scene_corners.get(3, 0)), new Point(scene_corners.get(0, 0)), RED, 4);
+  
+        sceneOutput = toPImage(img);
       }
-
-      MatOfPoint2f objMatOfPoint2f = new MatOfPoint2f();
-      objMatOfPoint2f.fromList(objectPoints);
-      MatOfPoint2f scnMatOfPoint2f = new MatOfPoint2f();
-      scnMatOfPoint2f.fromList(scenePoints);
-
-      Mat homography = Calib3d.findHomography(objMatOfPoint2f, scnMatOfPoint2f, Calib3d.RANSAC, 3);
-
-      // Draw borders around the object match
-      Mat obj_corners = new Mat(4, 1, CvType.CV_32FC2);
-      Mat scene_corners = new Mat(4, 1, CvType.CV_32FC2);
-
-      obj_corners.put(0, 0, new double[]{0, 0});
-      obj_corners.put(1, 0, new double[]{object.cols(), 0});
-      obj_corners.put(2, 0, new double[]{object.cols(), object.rows()});
-      obj_corners.put(3, 0, new double[]{0, object.rows()});
-
-      Core.perspectiveTransform(obj_corners, scene_corners, homography);
-
-      Mat img = toMat(sceneImg);
-      Scalar edgeColor = new Scalar(255, 255, 255, 255);
-
-      Core.line(img, new Point(scene_corners.get(0, 0)), new Point(scene_corners.get(1, 0)), edgeColor, 4);
-      Core.line(img, new Point(scene_corners.get(1, 0)), new Point(scene_corners.get(2, 0)), edgeColor, 4);
-      Core.line(img, new Point(scene_corners.get(2, 0)), new Point(scene_corners.get(3, 0)), edgeColor, 4);
-      Core.line(img, new Point(scene_corners.get(3, 0)), new Point(scene_corners.get(0, 0)), edgeColor, 4);
-
-      // Draw matching features b/t object and scene
-      Mat matchoutputRGB = new Mat(scene.rows() * 2, scene.cols() * 2, CvType.CV_8UC3);
-      MatOfDMatch goodMatches = new MatOfDMatch();
-      goodMatches.fromList(goodMatchesList);
-      Scalar matchColor = new Scalar(0, 255, 0);
-      Scalar nonMatchColor = new Scalar(0, 0, 255);
-      Features2d.drawMatches(object, objectKeypoints, scene, sceneKeypoints, goodMatches, matchoutputRGB, matchColor, nonMatchColor, new MatOfByte(), 2);
-      // Convert matchoutput photo to RGBA
-      Mat matchoutputRGBA = new Mat(matchoutputRGB.rows(), matchoutputRGB.cols(), CvType.CV_8UC4);
-      Imgproc.cvtColor(matchoutputRGB, matchoutputRGBA, Imgproc.COLOR_RGB2RGBA);
-
-      //sceneOutput = toPImage(matchoutputRGBA);
-      sceneOutput = toPImage(img);
     } else {
       // Object not found :(
-      
+      println("No Match Found");
       sceneOutput = sceneImg;
     }
     return sceneOutput;
   }
   
+  // TO MATRIX
   // Convert PImage (ARGB) to Mat (CvType = CV_8UC4)
   Mat toMat(PImage image) {
     int w = image.width;
@@ -168,6 +187,7 @@ class SURFTracker {
     return mat;
   }
   
+  // TO PIMAGE
   // Convert Mat (CvType=CV_8UC4) to PImage (ARGB)
   PImage toPImage(Mat mat) {
     int w = mat.width();

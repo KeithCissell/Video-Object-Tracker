@@ -11,42 +11,55 @@ import org.opencv.calib3d.Calib3d;
 import org.opencv.highgui.Highgui;
 import org.opencv.imgproc.Imgproc;
 
-
+// Movie
 Movie myMovie;
+PImage lastFrame;
+
 int framecount = 1;
 boolean finished = false;
 List<String> original_images = new ArrayList<String>();
 
 PImage referenceImg;
 PImage currImg;
-//String refFilename = "reference.jpg";
-String refFilename = "bookobject.jpg";
-String bookScene = "bookscene.jpg";
+String refFilename = "reference.jpg";
 //int num_of_frames;
 
 SURFTracker surfer;
+String bookObject = "bookobject.jpg";
+String bookScene = "bookscene.jpg";
 
 
 void setup() {
   size(500, 500);
-  // Use native library for SURF features
-  System.loadLibrary(Core.NATIVE_LIBRARY_NAME);
   surface.setResizable(true);
+  System.loadLibrary(Core.NATIVE_LIBRARY_NAME); // Use native library for SURF features
+  //referenceImg = loadImage(bookObject);
   referenceImg = loadImage(refFilename);
-  ////referenceImg.filter(GRAY);
-  //background(255);
-  //myMovie = new Movie(this, "totoro.mov");
-  //myMovie.play();
   surfer = new SURFTracker(referenceImg);
+  //referenceImg.filter(GRAY);
+  background(255);
+  myMovie = new Movie(this, "totoro.mov");
+  myMovie.loop();
+  //PImage sceneImg = loadImage(bookScene);
   //currImg = surfer.objectImg;
-  currImg = surfer.objectFeaturesImg;
-  PImage sceneImg = loadImage(bookScene);
+  //currImg = surfer.objectFeaturesImg;
   //currImg = surfer.findObject(sceneImg);
 }
 
 void draw() {
+  if (myMovie.available()) {
+    myMovie.read();
+    PImage currFrame = myMovie;
+    if (currFrame != lastFrame) {
+      lastFrame = currFrame;
+      currImg = surfer.findObject(currFrame);
+    }
+  }
+  
   surface.setSize(currImg.width, currImg.height);
   image(currImg, 0, 0);
+  
+  
   //if (myMovie.available()) {
   //  myMovie.read();
   //  surface.setSize(myMovie.width, myMovie.height);
