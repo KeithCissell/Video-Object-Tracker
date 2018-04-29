@@ -1,125 +1,98 @@
+/*
+LogarithmicSearch
+This class creates an instance of a logarithmic search tracker. This tracker is given an object to track,
+it can then be passed a scene that it will search for the object in and return any results.
+
+Detection method following this example: https://en.wikipedia.org/wiki/Template_matching
+*/
+
 class LogarithmicSearch{
-  PImage reference_img;
-  float min_correl = Float.POSITIVE_INFINITY;
-    //println(min_correl);
-  int bestrow = 0, bestcolumn = 0;
   
-  LogarithmicSearch(PImage ref_img){
+  // ATRIBUTES
+  PImage reference_img;
+  int bestrow;
+  int bestcolumn;
+  
+  // CONSTRUCTOR
+  LogarithmicSearch(PImage ref_img, int startRow, int startCol){
     reference_img = ref_img;
+    bestrow = startRow;
+    bestcolumn = startCol;
   }
   
-  PImage logarithmic_search(PImage displayImage, int frame){
-    //displayImage = loadImage(original_images.get(0));
-    PImage marked_img = createImage(displayImage.width, displayImage.height, RGB);
+  // FIND OBJECT
+  // Takes in a scene and tries to find object
+  PImage findObject(PImage sceneImg){
+    // Keep a copy of the original scene img to mark and return
+    PImage marked_img = sceneImg.copy();
     
-    // followed the link here with correlation equation: https://en.wikipedia.org/wiki/Template_matching
+    // Convert scene to grayscale
+    sceneImg.filter(GRAY);
     
-    if(frame==0){
-      println("if selected");
-      for(int y=0; y<displayImage.height - referenceImg.height; y++){
-      for(int x=0; x<displayImage.width - referenceImg.width; x++){
-        
-        float correl = 0.0;
-        
-        for(int i=0; i<referenceImg.height; i++){
-          for(int j=0; j<referenceImg.width;j++){
-            color cpx = displayImage.get(y+i, x+j);
-            float c = (red(cpx)+green(cpx)+blue(cpx))/3.0;
-            color rpx = referenceImg.get(i, j);
-            float r = (red(rpx)+green(rpx)+blue(rpx))/3.0;
-            //println("cpx: "+cpx+"rpx: "+rpx);
-            correl += abs(c - r);
-          }
-        }
-        
-        if(min_correl>correl){
-          //println("change");
-          min_correl = correl;
-          bestrow = y;
-          bestcolumn = x;
-        }
-        
-      }
-    }
-    println(min_correl, bestrow, bestcolumn);
-    int sx = bestcolumn - reference_img.width/2, sy = bestrow - reference_img.height/2, ex = bestcolumn +reference_img.width/2, ey = bestrow +reference_img.height/2;
-    for(int y=0; y<displayImage.height; y++){
-      for(int x=0; x<displayImage.width; x++){
-        if(sx<=x && x<=ex && y==sy || sx<=x && x<=ex && y==ey
-        || sy<=y && y<=ey && x==sx || sy<=y && y<=ey && x==ex){
-          marked_img.set(x, y, color(255,0,0));
-        } else{
-          color cpx = displayImage.get(x, y);
-          marked_img.set(x, y, cpx);
-        }
-      }
-    }
-    }
-    //print(original_images.size());
-    ///done with the first image
-    else{
-      println("else selected");
-      int p = 8;
+    // Set Minimum SAD (Sum of Absolute Differences)
+    float minSAD = Float.POSITIVE_INFINITY;
+
+    // Perform a logrithm area based search
+    int p = 8;
+    while(p != 1){
+      int k = int(ceil(log(p)/log(2)));
+      int d = int(pow(2,(k-1)));
+      int x = bestcolumn;
+      int y = bestrow;
       
-      while(p != 1){
-        int k = int(ceil(log(p)/log(2)));
-        int d = int(pow(2,(k-1)));
-        int x = bestcolumn, y = bestrow;
-        
-        int[][] points = {{x-d, y-d},{x, y-d},{x+d, y-d},
-                          {x-d, y  },{x, y  },{x+d, y  },
-                          {x-d, y+d},{x, y+d},{x+d, y+d}};
-        
-        min_correl = Float.POSITIVE_INFINITY;
-        for(int pnt=0; pnt<9; pnt++){
-          int x_coord = points[pnt][0];
-          int y_coord = points[pnt][1];
-          
-          float correl = 0.0;
-          
-          for(int i=0; i<referenceImg.height; i++){
-            for(int j=0; j<referenceImg.width;j++){
-              color cpx = displayImage.get(y_coord+i, x_coord+j);
-              float c = (red(cpx)+green(cpx)+blue(cpx))/3.0;
-              color rpx = referenceImg.get(i, j);
-              float r = (red(rpx)+green(rpx)+blue(rpx))/3.0;
-              //println("cpx: "+cpx+"rpx: "+rpx);
-              correl += abs(c - r);
-            }
-          }
-          
-          if(min_correl>correl){
-            //println("change");
-            min_correl = correl;
-            bestrow = y_coord;
-            bestcolumn = x_coord;
-          }
-        }
-        p = int(round(p/2));
-      }
-      //println("frame "+ (f+1)+": "+ bestrow +" " + bestcolumn);
-      println(min_correl, bestrow, bestcolumn);
-      int sx = bestcolumn - reference_img.width/2, sy = bestrow - reference_img.height/2, ex = bestcolumn +reference_img.width/2, ey = bestrow +reference_img.height/2;
-      for(int y=0; y<displayImage.height; y++){
-        for(int x=0; x<displayImage.width; x++){
-          if(sx<=x && x<=ex && y==sy || sx<=x && x<=ex && y==ey
-          || sy<=y && y<=ey && x==sx || sy<=y && y<=ey && x==ex){
-            marked_img.set(x, y, color(255,0,0));
-          } else{
-            color cpx = displayImage.get(x, y);
-            marked_img.set(x, y, cpx);
-          }
-        }
-      }
-    }
-    //else{
-    //  println("else selected");
-    //  println(min_correl, bestrow, bestcolumn);
-    //}
+      int[][] points = {{x-d, y-d},{x, y-d},{x+d, y-d},
+                        {x-d, y  },{x, y  },{x+d, y  },
+                        {x-d, y+d},{x, y+d},{x+d, y+d}};
       
-      return marked_img;
+      for(int pnt = 0; pnt < points.length; pnt++){
+        int x_coord = points[pnt][0];
+        int y_coord = points[pnt][1];
+        
+        float currentSAD = 0.0;
+        
+        // Iterate through reference image
+        for(int i = 0; i < referenceImg.height; i++){
+          for(int j = 0; j < referenceImg.width; j++){
+            color sceneColor = sceneImg.get(y_coord+i, x_coord+j);
+            color refColor = referenceImg.get(i, j);
+            currentSAD += abs(red(sceneColor) - red(refColor));
+          }
+        }
+        
+        // Update best SAD
+        if(currentSAD < minSAD){
+          println("change");
+          minSAD = currentSAD;
+          bestrow = y_coord;
+          bestcolumn = x_coord;
+        }
+      }
+      p = int(round(p/2));
+    }
     
+    // Draw a rectangle around the best match found
+    int startY = bestcolumn;
+    int startX = bestrow;
+    int endY = bestcolumn + reference_img.width;
+    int endX = bestrow + reference_img.height;
     
+    // Draw top and bottom of rect (stroke of 2px wide)
+    for(int x = startX; x <= endX; x++){
+      marked_img.set(x, startY, color(255,0,0));
+      marked_img.set(x, startY-1, color(255,0,0));
+      marked_img.set(x, endY, color(255,0,0));
+      marked_img.set(x, endY+1, color(255,0,0));
+    }
+    // Draw left and right of rect (stroke of 2px wide)
+    for(int y = startY; y <= endY; y++){
+      marked_img.set(startX, y, color(255,0,0));
+      marked_img.set(startX-1, y, color(255,0,0));
+      marked_img.set(endX, y, color(255,0,0));
+      marked_img.set(endX+1, y, color(255,0,0));
+    }
+    
+    // Returned the marked image
+    return marked_img;    
   }
 
 }

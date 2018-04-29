@@ -1,64 +1,83 @@
+/*
+ExhauxtiveSearch
+This class creates an instance of a exhaustive search tracker. This tracker is given an object to track,
+it can then be passed a scene that it will search for the object in and return any results.
+
+Detection method following this example: https://en.wikipedia.org/wiki/Template_matching
+*/
+
 class ExhaustiveSearch{
+  
+  // ATRIBUTES
   PImage reference_img;
   
+  // CONSTRUCTOR
   ExhaustiveSearch(PImage ref_img){
     reference_img = ref_img;
   }
   
-  PImage exhaustive_search(PImage displayImage){
-    //for(int f=0; f< (original_images.size()/10); f+=10){//original_images.size()
-    //  println(original_images.get(f));
-    //  displayImage = loadImage(original_images.get(f));
-    //displayImage.filter(GRAY);
-    PImage marked_img = createImage(displayImage.width, displayImage.height, RGB);
+  // FIND OBJECT
+  // Takes in a scene and tries to find object
+  PImage findObject(PImage sceneImg){
+    // Keep a copy of the original scene img to mark and return
+    PImage marked_img = sceneImg.copy();
     
-    // followed the link here with correlation equation: https://en.wikipedia.org/wiki/Template_matching
-    float min_correl = Float.POSITIVE_INFINITY;
-    //println(min_correl);
-    int bestrow = 0, bestcolumn = 0;
+    // Convert scene to grayscale
+    sceneImg.filter(GRAY);
     
-    for(int y=0; y<(displayImage.height - referenceImg.height); y++){
-      for(int x=0; x<(displayImage.width - referenceImg.width); x++){
+    // Set Minimum SAD (Sum of Absolute Differences)
+    float minSAD = Float.POSITIVE_INFINITY;
+    // Set row and col of best SAD found
+    int bestrow = 0;
+    int bestcolumn = 0;
+    
+    // Iterate through the scene image
+    for(int y = 0; y <= (sceneImg.height - referenceImg.height); y++){
+      for(int x = 0; x <= (sceneImg.width - referenceImg.width); x++){
         
-        float correl = 0.0;
+        float currentSAD = 0.0;
         
-        for(int i=0; i<referenceImg.height; i++){
-          for(int j=0; j<referenceImg.width;j++){
-            color cpx = displayImage.get(y+i, x+j);
-            float c = (red(cpx)+green(cpx)+blue(cpx))/3.0;
-            color rpx = referenceImg.get(i, j);
-            float r = (red(rpx)+green(rpx)+blue(rpx))/3.0;
-            //println("cpx: "+cpx+"rpx: "+rpx);
-            correl += abs(c - r);
+        // Iterate through reference image
+        for(int i = 0; i < referenceImg.height; i++){
+          for(int j = 0; j < referenceImg.width; j++){
+            color sceneColor = sceneImg.get(y+i, x+j);
+            color refColor = referenceImg.get(i, j);
+            currentSAD += abs(red(sceneColor) - red(refColor));
           }
         }
-        //println(correl);
-        if(min_correl>correl){
-          //println("change");
-          min_correl = correl;
+        
+        // Update best SAD
+        if(currentSAD < minSAD){
+          minSAD = currentSAD;
           bestrow = y;
           bestcolumn = x;
         }
-        
-      }
-    }
-    println(min_correl, bestrow, bestcolumn);
-    //println();
-    int sx = bestcolumn - reference_img.width/2, sy = bestrow - reference_img.height/2, ex = bestcolumn +reference_img.width/2, ey = bestrow +reference_img.height/2;
-    for(int y=0; y<displayImage.height; y++){
-      for(int x=0; x<displayImage.width; x++){
-        if(sx<=x && x<=ex && y==sy || sx<=x && x<=ex && y==ey
-        || sy<=y && y<=ey && x==sx || sy<=y && y<=ey && x==ex){
-          marked_img.set(x, y, color(255,0,0));
-        } else{
-          color cpx = displayImage.get(x, y);
-          marked_img.set(x, y, cpx);
-        }
       }
     }
     
+    // Draw a rectangle around the best match found
+    int startY = bestcolumn;
+    int startX = bestrow;
+    int endY = bestcolumn + reference_img.width;
+    int endX = bestrow + reference_img.height;
+    
+    // Draw top and bottom of rect (stroke of 2px wide)
+    for(int x = startX; x <= endX; x++){
+      marked_img.set(x, startY, color(255,0,0));
+      marked_img.set(x, startY-1, color(255,0,0));
+      marked_img.set(x, endY, color(255,0,0));
+      marked_img.set(x, endY+1, color(255,0,0));
+    }
+    // Draw left and right of rect (stroke of 2px wide)
+    for(int y = startY; y <= endY; y++){
+      marked_img.set(startX, y, color(255,0,0));
+      marked_img.set(startX-1, y, color(255,0,0));
+      marked_img.set(endX, y, color(255,0,0));
+      marked_img.set(endX+1, y, color(255,0,0));
+    }
+    
+    // Returned the marked image
     return marked_img;
   }
-  //}
   
 }

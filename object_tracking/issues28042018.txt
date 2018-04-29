@@ -1,3 +1,0 @@
-surf: memory out of bound
-exhaust and log: generates the positions but image does not show
-snipping: is not working but worked

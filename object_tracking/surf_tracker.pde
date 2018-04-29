@@ -1,7 +1,7 @@
 /*
 SURFTracker
 This class creates an instance of a SURF tracker. This tracker is given an object to track,
-it can then be passed a scene that it will search for the image and return any results.
+it can then be passed a scene that it will search for the object in and return any results.
 
 Detection method following this example: http://dummyscodes.blogspot.com/2015/12/using-siftsurf-for-object-recognition.html
 PImage <--> Mat conversion methods from: https://gist.github.com/Spaxe/3543f0005e9f8f3c4dc5
