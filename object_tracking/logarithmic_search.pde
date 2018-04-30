@@ -61,7 +61,6 @@ class LogarithmicSearch{
         
         // Update best SAD
         if(currentSAD < minSAD){
-          println("change");
           minSAD = currentSAD;
           bestrow = y_coord;
           bestcolumn = x_coord;
