@@ -31,7 +31,7 @@ class SURFTracker {
   int numObjectDescriptors;
   
   // Other Attributes
-  int matchThreshold = 7; // number of matches needed to classify an object "match" in a scene
+  int matchThreshold = 4; // number of matches needed to classify an object "match" in a scene
   boolean showFeatureMatches = false; // show mapping of matching features if match found in findObject
   
   // Matrix Operators
@@ -118,6 +118,19 @@ class SURFTracker {
         Imgproc.cvtColor(matchoutputRGB, matchoutputRGBA, Imgproc.COLOR_RGB2RGBA);
 
         sceneOutput = toPImage(matchoutputRGBA);
+        
+        //// Update scene background
+        //sceneOutput = createImage(sceneImg.width + objectImg.width, sceneImg.height, RGB);
+        //for (int x = 0; x < sceneOutput.width; x++) {
+        //  for (int y = 0; y < sceneOutput.height; y++) {
+        //    color c;
+        //    if (x <= sceneImg.width) c = sceneImg.get(x, y);
+        //    else if (y <= objectImg.height) c = objectImg.get(x - sceneImg.width, y);
+        //    else c = color(0,0,0);
+        //    sceneOutput.set(x, y, c);
+            
+        //  }
+        //}
       } else {
         // Draw a rectangle around the object found in scene
         // Find corresponding matches b/t object and scene
